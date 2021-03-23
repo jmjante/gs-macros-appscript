@@ -1,0 +1,25 @@
+
+send_report_email('');
+
+
+function send_report_email(spreadsheetId) {
+  var spreadsheet   = SpreadsheetApp.getActiveSpreadsheet();
+  var spreadsheetId = spreadsheet.getId(); 
+  var file          = DriveApp.getFileById(spreadsheetId);
+  var url           = 'https://docs.google.com/spreadsheets/d/'+spreadsheetId+'/export?format=xlsx';
+  var token         = ScriptApp.getOAuthToken();
+  var response      = UrlFetchApp.fetch(url, {
+    headers: {
+      'Authorization': 'Bearer ' +  token
+    }
+  });
+
+ var fileName = (spreadsheet.getName()) + '.xlsx';
+ var blobs   = [response.getBlob().setName(fileName)];
+
+ var receipient = "email@email.com"
+ var subject = "test_attachment_mail"
+ var emailbody = "first line \n\nsecond line \n\nCheers!,"
+
+ MailApp.sendEmail(receipient, subject, emailbody, {attachments: blobs});
+  }

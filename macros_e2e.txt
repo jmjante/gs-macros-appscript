@@ -1,0 +1,168 @@
+var today = new Date();
+var dd = String(today.getDate()).padStart(2, '0');
+var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+var yyyy = today.getFullYear();
+today = mm + '/' + dd + '/' + yyyy;
+
+var default_dateAssigned = default_dateOfAudit = today;
+var default_auditorName ='';
+
+var VIND_errcat = 'No Error'; 
+var SF6MOS_errcat = 'Execution';
+
+function runIDD_AUTO() {
+  var spreadsheet = SpreadsheetApp.getActive();
+  spreadsheet.getRange('A1').activate();
+
+  spreadsheet.setActiveSheet(spreadsheet.getSheetByName('RAW'));
+  rows = spreadsheet.getDataRange().getValues();
+
+  output_conso = [];
+
+  rows.forEach(function(row, index) {
+    if (index !== 0) {
+      if (row[9] === '') {        
+        raw_output_append(row, index, VIND_errcat, null, null);
+      } else if (row[9] === '') {
+        sf(row, index);
+      } else if (row[9] == "NULL" || row[9] == null) {
+
+        raw_output_append(row, index, 'No Error', 'NULL LOB', 'FOR INVALID RECORD REPORT');
+      } else {
+//          
+        raw_output_append(row, index, 'Execution', 'Unauthorized Execution', '');
+      }
+    }
+  });
+  
+//  spreadsheet.insertSheet('output_consolidated');
+  spreadsheet.setActiveSheet(spreadsheet.getSheetByName('output_template'));
+//  var output_sheet = SpreadsheetApp.getActiveSheet();
+
+  
+  //insert to output_template sheets
+  var range = spreadsheet.getActiveSheet().getRange(2, 1, output_conso.length,output_conso[0].length);  
+
+  range.setValues(output_conso);
+ 
+  SpreadsheetApp.flush();
+  range.sort({column: 14, ascending: true});
+ 
+//  createFileReport();
+  createFileRows = spreadsheet.getDataRange().getValues();
+//  console.log(createFileRows);
+  createFileRows.forEach(function(row, index){
+    if (index !== 0) {
+      if (row[13] === '-not found') {
+//        reportInvalidFile_append();
+        console.log(row[13]);
+      } else if (row[13] === '') {
+        console.log(row[13]);
+      } else if (row[13] === '') {
+        console.log(row[13]);
+      } else if (row[13] === '') {
+        console.log(row[13]);
+      }else {
+        console.log("Partner has no defined report. Please reach out to Admin.");
+      }
+    }
+  });  
+};
+
+
+function sendEmails2() {
+// This constant is written in column C for rows for which an email
+// has been sent successfully.
+  var EMAIL_SENT = 'EMAIL_SENT';
+  var sheet = SpreadsheetApp.getActiveSheet();
+  var startRow = 2; // First row of data to process
+  var numRows = 2; // Number of rows to process
+  // Fetch the range of cells A2:B3
+  var dataRange = sheet.getRange(startRow, 1, numRows, 4);
+  // Fetch values for each row in the Range.
+  var data = dataRange.getValues();
+  for (var i = 0; i < data.length; ++i) {
+    var row = data[i];
+    var emailAddress = row[0]; // First column
+    var message = row[1]; // Second column
+    var emailSent = row[2]; // Third column
+    var subj = row[3]; // fourth column
+    
+    if (emailSent !== EMAIL_SENT) { // Prevents sending duplicates
+      var subject = subj;
+      MailApp.sendEmail(emailAddress, subject, message);
+      sheet.getRange(startRow + i, 3).setValue(EMAIL_SENT);
+      // Make sure the cell is updated right away in case the script is interrupted
+      SpreadsheetApp.flush();
+    }
+  }
+}
+
+
+function sf(row, index) {
+    if (row[10] == "0-6 MONS"){
+//      output_conso.push(row[1] + " agent execution for customerno " + row[24] +  " with has tenure of " + row[10] + " is ERROR(SF can only process IDD with customer tenure greater than 6 months)!");
+      raw_output_append(row, index, SF6MOS_errcat, 'Unauthorized Execution', 'IDD activation noy allowed for 0-6 MONS');
+    } 
+    else if (row[10] == "NULL" || row[10] == null) {
+      raw_output_append(row, index, 'No Error', 'NULL TENURE', 'FOR INVALID RECORD REPORT');
+    }
+    else {
+
+      raw_output_append(row, index, 'No Error', null, null);
+    }
+}
+
+
+function raw_output_append(row, i, errCateg, errFound, errDesc) { 
+//  var partner = row[8].charAt(0) + row[8].substring(1).toLowerCase();
+  index = i +1;
+  
+  output_conso.push([
+    default_dateAssigned,
+    default_auditorName,
+    default_dateOfAudit,
+    '=QUERY(A'+ index + ',"select A format A \'MMMM\'")',
+    '=IFERROR(TEXT(WEEKNUM($F'+ index +',2),"00") & " (" & TEXT($F'+ index +'-WEEKDAY($F'+ index +',3),"MMM DD - ") & TEXT($F'+ index +'+(6-WEEKDAY($F'+ index +',3)),"MMM DD") & ")","")',
+    row[21],//transaction date
+    'Order Management',
+    'IDD',
+    'Consumer',
+    'Wireline',
+    'Globe QA',
+    row[1],//agentid
+    '=IFERROR(VLOOKUP($L' + index + ', \'FTE LIST\'!A:G, 2, FALSE),"-not found")',//agent name
+    '=IFERROR(VLOOKUP($L' + index + ', \'FTE LIST\'!A:G, 5, FALSE),"-not found")',//partner
+    row[19],//jobtype
+    'n/a',
+    row[24],//custacno
+    row[16],//orderno
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    errCateg,
+    errFound,
+    errDesc,
+    '0.00',
+    'For modification',
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    'PENDING',
+    null,
+    null,
+    null,
+    'PENDING',
+    null, 
+  ]);
+}

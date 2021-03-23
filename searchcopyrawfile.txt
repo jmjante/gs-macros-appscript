@@ -1,0 +1,81 @@
+//this is the primary source folder in shared drive where idd files are stored
+var IDDFolder = DriveApp.getFolderById('');
+var sourceFolder_gs = "";
+var today     = new Date();
+
+function getIDDRawFile() {
+  dateValues = printToday();
+  var fileDate = dateValues.yyyyVal + '-' + dateValues.mmVal + '-' + dateValues.ddVal;
+  var fileDate = '2020-04-13';
+  var searchquery = "title contains 'PMORPT - IDD Report v1.2 ao " + fileDate + "' and mimeType = '" + MimeType.MICROSOFT_EXCEL + "'";
+  //searching via file name and type
+  files = IDDFolder.searchFiles(searchquery);
+  
+  while(files.hasNext()) {
+    var file = files.next();
+
+    var convertedFilesourceID = convertExceltoGoogleSpreadsheet(file.getName());
+    var destSS = '';
+    copySheetContent(convertedFilesourceID, 'raw', destSS, 'RAW');
+//    console.log(file.getName());
+  }
+}
+
+function printToday() {
+  var today = new Date();
+  var dd = String(today.getDate()).padStart(2, '0');
+  var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+  var yyyy = today.getFullYear();
+  today = mm + '-' + dd + '-' + yyyy;
+//  console.log(today);
+  var dateValues = {
+    mmVal: mm,
+    ddVal: dd,
+    yyyyVal: yyyy
+  };
+  return dateValues
+}
+
+
+function convertExceltoGoogleSpreadsheet(fileName) {
+
+  try {
+    fileName = fileName || "microsoft-excel.xlsx";
+
+    var excelFile = DriveApp.getFilesByName(fileName).next();
+    var fileId = excelFile.getId();
+//    var folderId = Drive.Files.get(fileId).parents[0].id;
+    var folderId = sourceFolder_gs;
+    var blob = excelFile.getBlob();
+    var titlegs = excelFile.getName();
+    var resource = {
+      title: titlegs,
+      mimeType: MimeType.GOOGLE_SHEETS,
+      parents: [{id: folderId}],
+    };
+    fileGS = Drive.Files.insert(resource, blob);
+
+    return fileGS.id;
+  } catch (f) {
+    Logger.log(f.toString());
+  }
+}
+
+function copySheetContent(sourceSS, sourceSheetName, destSS, destSheetName) {
+  var src = SpreadsheetApp.openById(sourceSS);
+  var srcSheet = src.getSheetByName(sourceSheetName);
+  var dest =  SpreadsheetApp.openById(destSS);
+  var destSheet = dest.getSheetByName(destSheetName);
+  
+  srcSheet.activate();
+  rows = src.getDataRange().getValues();
+  destSheet.activate();
+  
+  //insert to destSheets
+  var range = dest.getActiveSheet().getRange(1, 1, rows.length,rows[0].length);  
+  range.setValues(rows);
+  SpreadsheetApp.flush();
+
+}
+
+
